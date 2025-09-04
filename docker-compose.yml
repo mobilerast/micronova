@@ -7,15 +7,21 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: root_password
-      MYSQL_DATABASE: micronova_db
-      MYSQL_USER: micronova_user
-      MYSQL_PASSWORD: micronova_pass
+      MYSQL_DATABASE: micronova
+      MYSQL_USER: micronova
+      MYSQL_PASSWORD: micronova
     ports:
       - "3306:3306"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - db:/var/lib/mysql
       - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
     command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "micronova", "-pmicronova"]
+      timeout: 5s
+      retries: 10
+      interval: 10s
+      start_period: 30s
 
 volumes:
-  mysql_data:
+  db:

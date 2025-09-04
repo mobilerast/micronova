@@ -9,23 +9,30 @@
 npm install
 ```
 
-### 2. Start Database
+### 2. Environment Setup
 ```bash
-docker compose up -d
+cp .env.example .env
+# Edit .env with your database URL and API key
 ```
 
-### 3. Setup Database Schema
+### 3. Start Database
 ```bash
-npm run db:generate
-npm run db:push
+npm run db:up
+# or manually: docker compose up -d
 ```
 
-### 4. Seed Sample Data
+### 4. Setup Database Schema
 ```bash
-npm run db:seed
+npm run prisma:generate
+npx prisma db push
 ```
 
-### 5. Start Development Server
+### 5. Seed Sample Data
+```bash
+npm run seed
+```
+
+### 6. Start Development Server
 ```bash
 npm run dev
 ```
@@ -55,9 +62,9 @@ curl -X POST http://localhost:3000/api/children \
   }'
 ```
 
-### Get Sample Assessment Questions
+### Get Assessment Questions
 ```bash
-curl http://localhost:3000/api/assessments/sample/questions
+curl http://localhost:3000/api/assessments/questions
 ```
 
 ### Create Assessment (Leveling Quiz)
@@ -98,136 +105,43 @@ curl -X POST http://localhost:3000/api/plans \
 curl http://localhost:3000/api/plans/1/day/1
 ```
 
-### Create Learning Session
-```bash
-curl -X POST http://localhost:3000/api/sessions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "childId": 1,
-    "planDayId": 1,
-    "vocabAnswer": "yellow",
-    "readingAnswer": "The sun comes out",
-    "speakingAnswer": "My favorite color is blue because it reminds me of the ocean.",
-    "vocabCorrect": true,
-    "readingCorrect": true,
-    "totalTimeMs": 120000
-  }'
-```
-
-## 🔐 Admin/Seed Endpoints
-
-These require the `x-api-key` header with appropriate API key:
-
-### Seed Sample Data
-```bash
-curl -X POST http://localhost:3000/api/seed/sample-data \
-  -H "x-api-key: seed_micronova_2025_key"
-```
-
-### Get Database Stats
-```bash
-curl http://localhost:3000/api/seed/database-stats \
-  -H "x-api-key: seed_micronova_2025_key"
-```
-
-### Reset and Seed Fresh Data
-```bash
-curl -X POST http://localhost:3000/api/seed/reset-and-seed \
-  -H "x-api-key: seed_micronova_2025_key"
-```
-
-### Clear All Data (Dangerous!)
-```bash
-curl -X DELETE http://localhost:3000/api/seed/clear-all \
-  -H "x-api-key: seed_micronova_2025_key"
-```
-
 ## 📁 API Endpoints
 
-### Children
-- `GET /api/children` - List all children
-- `GET /api/children/:id` - Get child by ID
-- `POST /api/children` - Create new child
-- `PUT /api/children/:id` - Update child
-- `DELETE /api/children/:id` - Delete child
-
-### Assessments (Leveling Quiz)
+### Main Endpoints
+- `GET /health` - Health check
+- `GET /api/children` - List children
+- `POST /api/children` - Create child
+- `GET /api/guardians` - List guardians
+- `POST /api/guardians` - Create guardian
 - `GET /api/assessments` - List assessments
-- `GET /api/assessments/:id` - Get assessment by ID
+- `GET /api/assessments/questions` - Get sample questions
 - `POST /api/assessments` - Create assessment
-- `GET /api/assessments/child/:childId` - Get child's assessments
-- `GET /api/assessments/sample/questions` - Get sample questions
+- `GET /api/plans` - List learning plans
+- `POST /api/plans` - Create learning plan
+- `GET /api/plans/:id/day/:dayNumber` - Get plan day
 
-### Learning Plans
-- `GET /api/plans` - List all plans
-- `GET /api/plans/:id` - Get plan by ID
-- `POST /api/plans` - Create new plan
-- `GET /api/plans/child/:childId` - Get child's plans
-- `GET /api/plans/:id/day/:dayNumber` - Get specific plan day
-- `GET /api/plans/:id/progress` - Get plan progress
-- `DELETE /api/plans/:id` - Delete plan
-
-### Learning Sessions
-- `GET /api/sessions` - List sessions
-- `GET /api/sessions/:id` - Get session by ID
-- `POST /api/sessions` - Create new session
-- `GET /api/sessions/child/:childId` - Get child's sessions
-- `GET /api/sessions/child/:childId/stats` - Get child's session stats
-- `PUT /api/sessions/:id` - Update session
-- `DELETE /api/sessions/:id` - Delete session
-
-### Seed/Admin (Requires API Key)
-- `POST /api/seed/sample-data` - Create sample data
-- `GET /api/seed/database-stats` - Get database statistics
-- `POST /api/seed/reset-and-seed` - Reset and create fresh data
-- `DELETE /api/seed/clear-all` - Clear all data
-
-## 🎯 Typical User Flow
-
-1. **Create Child**: POST `/api/children`
-2. **Take Assessment**: POST `/api/assessments` (determines level A0/A1/A2-kids)
-3. **Generate Plan**: POST `/api/plans` (creates 60-day plan)
-4. **Daily Learning**: 
-   - GET `/api/plans/:id/day/:dayNumber` (get day's activities)
-   - POST `/api/sessions` (record answers and progress)
-5. **Track Progress**: GET `/api/plans/:id/progress` and GET `/api/sessions/child/:id/stats`
-
-## 📊 Data Structure
-
-### Daily Plan Structure
-Each day contains:
-- **Vocab Task**: Word definition with 4 multiple choice options
-- **Reading Task**: Short story/text with comprehension question
-- **Speaking Prompt**: Open-ended question for voice/text response
-
-### Levels
-- **A0**: Basic (ages 8-9) - Colors, animals, family
-- **A1**: Elementary (ages 10-11) - School, weather, hobbies  
-- **A2-kids**: Intermediate (ages 12-13) - Travel, nature, technology
-
-## 🛠 Development Commands
+## 🔧 Development Commands
 
 ```bash
-npm run dev          # Start development server
-npm run start        # Start production server
-npm run db:generate  # Generate Prisma client
-npm run db:push      # Push schema to database
-npm run db:migrate   # Create migration
-npm run db:seed      # Seed database
-npm run db:reset     # Reset database and seed
+npm run dev              # Start development server
+npm run start            # Start production server
+npm run seed             # Seed database with sample data
+npm run prisma:generate  # Generate Prisma client
+npm run prisma:migrate   # Create database migration
+npm run db:up            # Start database with Docker
 ```
 
-## 🔧 Environment Variables
+## � Environment Variables
 
-Check `.env` file for configuration:
+Required in `.env` file:
 - `DATABASE_URL` - MySQL connection string
-- `ADMIN_API_KEY` - API key for admin endpoints
-- `SEED_API_KEY` - API key for seed endpoints
+- `API_KEY` - API key for protected routes
 - `PORT` - Server port (default: 3000)
+- `NODE_ENV` - Environment (development/production)
 
 ## 🐳 Docker
 
-Database runs in Docker. To manage:
+Database runs in Docker:
 
 ```bash
 docker compose up -d     # Start database
@@ -235,13 +149,40 @@ docker compose down      # Stop database
 docker compose logs      # View database logs
 ```
 
-## 📝 Notes
+## 📝 Project Structure
 
-- All API responses are JSON
-- Input validation using express-validator
-- No PII in logs (kid-safe)
-- Questions are short with ≤4 options
-- No timers (stress-free learning)
-- Simple wording for ages 8-13
+```
+src/
+├── app.js                  # Express app setup
+├── server.js              # Server startup
+├── routes/
+│   ├── index.js           # Main routes + health check
+│   ├── children.js        # Child management
+│   ├── guardians.js       # Guardian management
+│   ├── assessments.js     # Leveling quizzes
+│   └── plans.js          # Learning plans
+├── middleware/
+│   ├── apiKey.js         # API key authentication
+│   └── errorHandler.js   # Global error handling
+├── services/
+│   ├── assessmentService.js  # Assessment logic
+│   └── planService.js       # Plan generation
+└── lib/
+    └── prisma.js         # Database client
+```
+
+## 🎯 Typical User Flow
+
+1. **Create Guardian**: POST `/api/guardians`
+2. **Create Child**: POST `/api/children`
+3. **Take Assessment**: POST `/api/assessments` (determines level A0/A1/A2-kids)
+4. **Generate Plan**: POST `/api/plans` (creates 60-day plan)
+5. **Daily Learning**: GET `/api/plans/:id/day/:dayNumber` (get day's activities)
+
+## 📚 Documentation
+
+- Database schema in `prisma/schema.prisma`
+- Sample data seeding in `prisma/seed/seedQuestions.js`
+- API examples in this quickstart guide
 
 Happy coding! 🚀📚

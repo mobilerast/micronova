@@ -10,16 +10,32 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Guardian {
+  id           Int      @id @default(autoincrement())
+  name         String   @db.VarChar(100)
+  email        String   @unique @db.VarChar(255)
+  relationship String   @default("parent") @db.VarChar(50)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  children Child[]
+
+  @@map("guardians")
+}
+
 model Child {
   id          Int      @id @default(autoincrement())
   name        String   @db.VarChar(100)
   age         Int
   language    String   @default("english") @db.VarChar(50)
   level       String?  @db.VarChar(20) // A0, A1, A2-kids
+  guardianId  Int?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Relations
+  guardian    Guardian? @relation(fields: [guardianId], references: [id], onDelete: SetNull)
   assessments Assessment[]
   plans       LearningPlan[]
   sessions    LearningSession[]
