@@ -11,12 +11,11 @@ datasource db {
 }
 
 model Guardian {
-  id           Int      @id @default(autoincrement())
-  name         String   @db.VarChar(100)
-  email        String   @unique @db.VarChar(255)
-  relationship String   @default("parent") @db.VarChar(50)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id        Int      @id @default(autoincrement())
+  email     String   @unique @db.VarChar(255)
+  phone     String?  @db.VarChar(20)
+  name      String   @db.VarChar(100)
+  createdAt DateTime @default(now())
 
   // Relations
   children Child[]
@@ -25,86 +24,137 @@ model Guardian {
 }
 
 model Child {
-  id          Int      @id @default(autoincrement())
-  name        String   @db.VarChar(100)
-  age         Int
-  language    String   @default("english") @db.VarChar(50)
-  level       String?  @db.VarChar(20) // A0, A1, A2-kids
-  guardianId  Int?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             Int      @id @default(autoincrement())
+  guardianId     Int
+  name           String   @db.VarChar(100)
+  age            Int
+  nativeLanguage String   @db.VarChar(50)
+  createdAt      DateTime @default(now())
 
   // Relations
-  guardian    Guardian? @relation(fields: [guardianId], references: [id], onDelete: SetNull)
-  assessments Assessment[]
-  plans       LearningPlan[]
-  sessions    LearningSession[]
+  guardian           Guardian            @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+  assessmentSessions AssessmentSession[]
+  plans              Plan[]
 
   @@map("children")
 }
 
-model Assessment {
+model AssessmentSession {
+  id         Int                     @id @default(autoincrement())
+  childId    Int
+  status     AssessmentSessionStatus @default(ACTIVE)
+  score      Int?
+  startedAt  DateTime                @default(now())
+  finishedAt DateTime?
+
+  // Relations
+  child   Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  answers Answer[]
+
+  @@map("assessment_sessions")
+}
+
+model Question {
+  id        Int           @id @default(autoincrement())
+  slug      String        @unique @db.VarChar(100)
+  text      String        @db.Text
+  ageMin    Int
+  ageMax    Int
+  scope     QuestionScope
+  levelHint QuestionLevel
+  createdAt DateTime      @default(now())
+
+  // Relations
+  options Option[]
+  answers Answer[]
+
+  @@map("questions")
+}
+
+model Option {
+  id         Int     @id @default(autoincrement())
+  questionId Int
+  text       String  @db.VarChar(500)
+  isCorrect  Boolean @default(false)
+
+  // Relations
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answers  Answer[]
+
+  @@map("options")
+}
+
+model Answer {
   id        Int      @id @default(autoincrement())
-  childId   Int
-  score     Int      // 0-100
-  level     String   @db.VarChar(20) // A0, A1, A2-kids
-  answers   Json     // Store question-answer pairs
+  sessionId Int
+  questionId Int
+  optionId  Int?
+  freeText  String?  @db.Text
+  correct   Boolean
   createdAt DateTime @default(now())
 
   // Relations
-  child Child @relation(fields: [childId], references: [id], onDelete: Cascade)
+  session  AssessmentSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question Question          @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  option   Option?           @relation(fields: [optionId], references: [id], onDelete: SetNull)
 
-  @@map("assessments")
+  @@map("answers")
 }
 
-model LearningPlan {
-  id          Int      @id @default(autoincrement())
-  childId     Int
-  level       String   @db.VarChar(20) // A0, A1, A2-kids
-  startDate   DateTime @default(now())
-  endDate     DateTime // 60 days from start
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model Plan {
+  id        Int      @id @default(autoincrement())
+  childId   Int
+  startsOn  DateTime
+  endsOn    DateTime
+  band      PlanBand
+  createdAt DateTime @default(now())
 
   // Relations
-  child Child            @relation(fields: [childId], references: [id], onDelete: Cascade)
-  days  LearningPlanDay[]
+  child    Child     @relation(fields: [childId], references: [id], onDelete: Cascade)
+  planDays PlanDay[]
 
-  @@map("learning_plans")
+  @@map("plans")
 }
 
-model LearningPlanDay {
-  id             Int    @id @default(autoincrement())
-  planId         Int
-  dayNumber      Int    // 1-60
-  vocabTask      Json   // {word, definition, options, correctAnswer}
-  readingTask    Json   // {title, content, question, options, correctAnswer}
-  speakingPrompt Json   // {prompt, expectedLength}
+model PlanDay {
+  id              Int     @id @default(autoincrement())
+  planId          Int
+  dayIndex        Int
+  vocabTask       Json
+  readingTask     Json
+  speakingTask    Json
+  listeningTask   Json?
+  minutesEstimate Int
 
   // Relations
-  plan     LearningPlan      @relation(fields: [planId], references: [id], onDelete: Cascade)
-  sessions LearningSession[]
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
 
-  @@unique([planId, dayNumber])
-  @@map("learning_plan_days")
+  @@unique([planId, dayIndex])
+  @@map("plan_days")
 }
 
-model LearningSession {
-  id              Int      @id @default(autoincrement())
-  childId         Int
-  planDayId       Int
-  completedAt     DateTime @default(now())
-  vocabAnswer     String?  @db.VarChar(200)
-  readingAnswer   String?  @db.VarChar(200)
-  speakingAnswer  String?  @db.Text
-  vocabCorrect    Boolean?
-  readingCorrect  Boolean?
-  totalTimeMs     Int?     // Time spent in milliseconds
+// Enums
+enum AssessmentSessionStatus {
+  ACTIVE
+  FINISHED
+}
 
-  // Relations
-  child   Child           @relation(fields: [childId], references: [id], onDelete: Cascade)
-  planDay LearningPlanDay @relation(fields: [planDayId], references: [id], onDelete: Cascade)
+enum QuestionScope {
+  vocab
+  grammar
+  reading
+  listening
+  speaking
+}
 
-  @@map("learning_sessions")
+enum QuestionLevel {
+  A0
+  A1
+  A2
+}
+
+enum PlanBand {
+  A0
+  A1
+  A2
 }
