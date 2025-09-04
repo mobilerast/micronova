@@ -1,0 +1,94 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Child {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(100)
+  age         Int
+  language    String   @default("english") @db.VarChar(50)
+  level       String?  @db.VarChar(20) // A0, A1, A2-kids
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  assessments Assessment[]
+  plans       LearningPlan[]
+  sessions    LearningSession[]
+
+  @@map("children")
+}
+
+model Assessment {
+  id        Int      @id @default(autoincrement())
+  childId   Int
+  score     Int      // 0-100
+  level     String   @db.VarChar(20) // A0, A1, A2-kids
+  answers   Json     // Store question-answer pairs
+  createdAt DateTime @default(now())
+
+  // Relations
+  child Child @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@map("assessments")
+}
+
+model LearningPlan {
+  id          Int      @id @default(autoincrement())
+  childId     Int
+  level       String   @db.VarChar(20) // A0, A1, A2-kids
+  startDate   DateTime @default(now())
+  endDate     DateTime // 60 days from start
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  child Child            @relation(fields: [childId], references: [id], onDelete: Cascade)
+  days  LearningPlanDay[]
+
+  @@map("learning_plans")
+}
+
+model LearningPlanDay {
+  id             Int    @id @default(autoincrement())
+  planId         Int
+  dayNumber      Int    // 1-60
+  vocabTask      Json   // {word, definition, options, correctAnswer}
+  readingTask    Json   // {title, content, question, options, correctAnswer}
+  speakingPrompt Json   // {prompt, expectedLength}
+
+  // Relations
+  plan     LearningPlan      @relation(fields: [planId], references: [id], onDelete: Cascade)
+  sessions LearningSession[]
+
+  @@unique([planId, dayNumber])
+  @@map("learning_plan_days")
+}
+
+model LearningSession {
+  id              Int      @id @default(autoincrement())
+  childId         Int
+  planDayId       Int
+  completedAt     DateTime @default(now())
+  vocabAnswer     String?  @db.VarChar(200)
+  readingAnswer   String?  @db.VarChar(200)
+  speakingAnswer  String?  @db.Text
+  vocabCorrect    Boolean?
+  readingCorrect  Boolean?
+  totalTimeMs     Int?     // Time spent in milliseconds
+
+  // Relations
+  child   Child           @relation(fields: [childId], references: [id], onDelete: Cascade)
+  planDay LearningPlanDay @relation(fields: [planDayId], references: [id], onDelete: Cascade)
+
+  @@map("learning_sessions")
+}

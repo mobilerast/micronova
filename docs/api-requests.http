@@ -1,0 +1,181 @@
+### Micronova API Test Requests
+### Use with REST Client extension or any HTTP client
+
+@baseUrl = http://localhost:3000
+@seedApiKey = seed_micronova_2025_key
+@adminApiKey = admin_micronova_2025_key
+
+### Health Check
+GET {{baseUrl}}/health
+
+### === CHILDREN ENDPOINTS ===
+
+### Get all children
+GET {{baseUrl}}/api/children
+
+### Create a new child
+POST {{baseUrl}}/api/children
+Content-Type: application/json
+
+{
+  "name": "Alex Johnson",
+  "age": 9,
+  "language": "english"
+}
+
+### Get child by ID
+GET {{baseUrl}}/api/children/1
+
+### Update child
+PUT {{baseUrl}}/api/children/1
+Content-Type: application/json
+
+{
+  "name": "Alex Johnson Updated",
+  "level": "A1"
+}
+
+### === ASSESSMENT ENDPOINTS ===
+
+### Get sample assessment questions
+GET {{baseUrl}}/api/assessments/sample/questions
+
+### Get all assessments
+GET {{baseUrl}}/api/assessments
+
+### Create assessment (leveling quiz)
+POST {{baseUrl}}/api/assessments
+Content-Type: application/json
+
+{
+  "childId": 1,
+  "answers": [
+    {
+      "questionId": 1,
+      "selectedAnswer": "Yellow",
+      "correctAnswer": "Yellow",
+      "isCorrect": true
+    },
+    {
+      "questionId": 2,
+      "selectedAnswer": "Cat",
+      "correctAnswer": "Cat",
+      "isCorrect": true
+    },
+    {
+      "questionId": 3,
+      "selectedAnswer": "7",
+      "correctAnswer": "7",
+      "isCorrect": true
+    },
+    {
+      "questionId": 4,
+      "selectedAnswer": "Pencil",
+      "correctAnswer": "Pencil",
+      "isCorrect": true
+    }
+  ]
+}
+
+### Get assessments for specific child
+GET {{baseUrl}}/api/assessments/child/1
+
+### === LEARNING PLAN ENDPOINTS ===
+
+### Get all plans
+GET {{baseUrl}}/api/plans
+
+### Create learning plan
+POST {{baseUrl}}/api/plans
+Content-Type: application/json
+
+{
+  "childId": 1,
+  "level": "A1"
+}
+
+### Get plan by ID
+GET {{baseUrl}}/api/plans/1
+
+### Get specific day from plan
+GET {{baseUrl}}/api/plans/1/day/1
+
+### Get plan progress
+GET {{baseUrl}}/api/plans/1/progress
+
+### Get plans for specific child
+GET {{baseUrl}}/api/plans/child/1
+
+### === LEARNING SESSION ENDPOINTS ===
+
+### Get all sessions
+GET {{baseUrl}}/api/sessions
+
+### Create learning session
+POST {{baseUrl}}/api/sessions
+Content-Type: application/json
+
+{
+  "childId": 1,
+  "planDayId": 1,
+  "vocabAnswer": "red",
+  "readingAnswer": "After it rains when the sun comes out",
+  "speakingAnswer": "My favorite color is blue because it reminds me of the ocean and makes me feel calm.",
+  "vocabCorrect": true,
+  "readingCorrect": true,
+  "totalTimeMs": 180000
+}
+
+### Get session by ID
+GET {{baseUrl}}/api/sessions/1
+
+### Get sessions for specific child
+GET {{baseUrl}}/api/sessions/child/1
+
+### Get session statistics for child
+GET {{baseUrl}}/api/sessions/child/1/stats
+
+### Update session
+PUT {{baseUrl}}/api/sessions/1
+Content-Type: application/json
+
+{
+  "speakingAnswer": "Updated speaking response with more details about why I like this color.",
+  "totalTimeMs": 200000
+}
+
+### === SEED/ADMIN ENDPOINTS (Require API Key) ===
+
+### Create sample data
+POST {{baseUrl}}/api/seed/sample-data
+x-api-key: {{seedApiKey}}
+
+### Get database statistics
+GET {{baseUrl}}/api/seed/database-stats
+x-api-key: {{seedApiKey}}
+
+### Reset and seed fresh data
+POST {{baseUrl}}/api/seed/reset-and-seed
+x-api-key: {{seedApiKey}}
+
+### Clear all data (dangerous!)
+DELETE {{baseUrl}}/api/seed/clear-all
+x-api-key: {{seedApiKey}}
+
+### === ERROR TESTING ===
+
+### Try to access seed endpoint without API key (should fail)
+POST {{baseUrl}}/api/seed/sample-data
+
+### Try to create child with invalid age (should fail)
+POST {{baseUrl}}/api/children
+Content-Type: application/json
+
+{
+  "name": "Invalid Child",
+  "age": 15,
+  "language": "english"
+}
+
+### Try to get non-existent child (should fail)
+GET {{baseUrl}}/api/children/999
