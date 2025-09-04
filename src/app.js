@@ -9,6 +9,7 @@ const guardiansRoutes = require('./routes/guardians');
 const assessmentRoutes = require('./routes/assessments');
 const planRoutes = require('./routes/plans');
 const errorHandler = require('./middleware/errorHandler');
+const { requireApiKey } = require('./middleware/apiKey');
 
 const app = express();
 
@@ -20,10 +21,10 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/', indexRoutes);
-app.use('/api/children', childrenRoutes);
-app.use('/api/guardians', guardiansRoutes);
-app.use('/api/assessments', assessmentRoutes);
-app.use('/api/plans', planRoutes);
+app.use('/api/children', requireApiKey, childrenRoutes);
+app.use('/api/guardians', requireApiKey, guardiansRoutes);
+app.use('/api/assessments', requireApiKey, assessmentRoutes);
+app.use('/api/plans', requireApiKey, planRoutes);
 
 // Error handling
 app.use(errorHandler);
