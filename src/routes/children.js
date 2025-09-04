@@ -8,73 +8,61 @@ const router = express.Router();
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ error: 'Validation failed', details: errors.array() });
+    return res.status(400).json({ 
+      error: 'Validation failed',
+      details: errors.array()
+    });
   }
   next();
 };
 
-// GET /api/children - List all children
-router.get('/', async (req, res) => {
+// POST /api/children - Register a new child
+router.post('/', [
+  body('guardianId').isInt().withMessage('Guardian ID must be a valid integer'),
+  body('name').trim().notEmpty().withMessage('Name is required').isLength({ min: 2, max: 50 }).withMessage('Name must be between 2 and 50 characters'),
+  body('age').isInt({ min: 5, max: 18 }).withMessage('Age must be between 5 and 18'),
+  body('nativeLanguage').trim().notEmpty().withMessage('Native language is required').isLength({ min: 2, max: 30 }).withMessage('Native language must be between 2 and 30 characters'),
+  handleValidationErrors
+], async (req, res) => {
   try {
-    const children = await prisma.child.findMany({
-      orderBy: { createdAt: 'desc' }
-    });
-    res.json({ children });
-  } catch (error) {
-    console.error('Error fetching children:', error);
-    res.status(500).json({ error: 'Failed to fetch children' });
-  }
-});
+    const { guardianId, name, age, nativeLanguage } = req.body;
 
-// GET /api/children/:id - Get child by ID
-router.get('/:id', [
-  param('id').isInt({ min: 1 }).withMessage('Child ID must be a positive integer')
-], handleValidationErrors, async (req, res) => {
-  try {
-    const child = await prisma.child.findUnique({
-      where: { id: parseInt(req.params.id) }
+    // Check if guardian exists
+    const guardian = await prisma.guardian.findUnique({
+      where: { id: guardianId }
     });
 
-    if (!child) {
-      return res.status(404).json({ error: 'Child not found' });
+    if (!guardian) {
+      return res.status(404).json({ error: 'Guardian not found' });
     }
 
-    res.json({ child });
-  } catch (error) {
-    console.error('Error fetching child:', error);
-    res.status(500).json({ error: 'Failed to fetch child' });
-  }
-});
-
-// POST /api/children - Create new child
-router.post('/', [
-  body('name')
-    .trim()
-    .isLength({ min: 1, max: 100 })
-    .withMessage('Name must be 1-100 characters'),
-  body('age')
-    .isInt({ min: 8, max: 13 })
-    .withMessage('Age must be between 8 and 13'),
-  body('language')
-    .optional()
-    .isLength({ min: 2, max: 50 })
-    .withMessage('Language must be 2-50 characters')
-], handleValidationErrors, async (req, res) => {
-  try {
-    const { name, age, language } = req.body;
-    
+    // Create new child
     const child = await prisma.child.create({
       data: {
+        guardianId,
         name,
         age,
-        language: language || 'english'
+        nativeLanguage
       }
     });
 
-    res.status(201).json({ child });
+    res.status(201).json({
+      message: 'Child registered successfully',
+      child: {
+        id: child.id,
+        name: child.name,
+        age: child.age,
+        nativeLanguage: child.nativeLanguage,
+        guardianId: child.guardianId,
+        createdAt: child.createdAt
+      }
+    });
   } catch (error) {
-    console.error('Error creating child:', error);
-    res.status(500).json({ error: 'Failed to create child' });
+    console.error('Error registering child:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message
+    });
   }
 });
 

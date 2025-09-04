@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 const { PrismaClient } = require('@prisma/client');
-const { PlanGenerator } = require('../services/planGenerator');
 require('dotenv').config();
 
 const prisma = new PrismaClient();
@@ -10,142 +9,391 @@ async function seedDatabase() {
   try {
     console.log('🌱 Starting database seed...');
 
-    // Clear existing data
+    // Clear existing data in correct order
     console.log('🗑️ Clearing existing data...');
-    await prisma.learningSession.deleteMany();
-    await prisma.learningPlanDay.deleteMany();
-    await prisma.learningPlan.deleteMany();
-    await prisma.assessment.deleteMany();
+    await prisma.answer.deleteMany();
+    await prisma.option.deleteMany();
+    await prisma.question.deleteMany();
+    await prisma.planDay.deleteMany();
+    await prisma.plan.deleteMany();
+    await prisma.assessmentSession.deleteMany();
     await prisma.child.deleteMany();
+    await prisma.guardian.deleteMany();
+
+    // Create sample guardians
+    console.log('👨‍👩‍👧‍👦 Creating sample guardians...');
+    const guardians = await Promise.all([
+      prisma.guardian.create({
+        data: { name: 'Sarah Johnson', email: 'sarah@example.com', phone: '+1-555-0101' }
+      }),
+      prisma.guardian.create({
+        data: { name: 'Mike Rodriguez', email: 'mike@example.com', phone: '+1-555-0102' }
+      }),
+      prisma.guardian.create({
+        data: { name: 'Lisa Chen', email: 'lisa@example.com', phone: null }
+      })
+    ]);
 
     // Create sample children
     console.log('👶 Creating sample children...');
     const children = await Promise.all([
       prisma.child.create({
-        data: { name: 'Emma Thompson', age: 8, language: 'english' }
+        data: { name: 'Emma Johnson', age: 8, nativeLanguage: 'english', guardianId: guardians[0].id }
       }),
       prisma.child.create({
-        data: { name: 'Liam Rodriguez', age: 10, language: 'english' }
+        data: { name: 'Liam Rodriguez', age: 10, nativeLanguage: 'spanish', guardianId: guardians[1].id }
       }),
       prisma.child.create({
-        data: { name: 'Sophia Chen', age: 9, language: 'english' }
+        data: { name: 'Sophia Chen', age: 9, nativeLanguage: 'mandarin', guardianId: guardians[2].id }
       }),
       prisma.child.create({
-        data: { name: 'Noah Williams', age: 11, language: 'english' }
+        data: { name: 'Noah Williams', age: 11, nativeLanguage: 'english', guardianId: guardians[0].id }
       }),
       prisma.child.create({
-        data: { name: 'Olivia Johnson', age: 12, language: 'english' }
+        data: { name: 'Olivia Johnson', age: 12, nativeLanguage: 'english', guardianId: guardians[1].id }
       })
     ]);
 
     console.log(`✅ Created ${children.length} children`);
 
-    // Create assessments and plans for each child
-    for (const child of children) {
-      console.log(`📝 Creating assessment for ${child.name}...`);
-      
-      // Random score and determine level
-      const score = Math.floor(Math.random() * 100);
-      const level = PlanGenerator.determineLevel(score);
-
-      // Create assessment
-      const assessment = await prisma.assessment.create({
+    // Create comprehensive question bank (15-20 questions across scopes and levels)
+    console.log('❓ Creating question bank...');
+    const questions = await Promise.all([
+      // A0 Vocabulary Questions (Ages 8-10)
+      prisma.question.create({
         data: {
-          childId: child.id,
-          score,
-          level,
-          answers: [
-            { questionId: 1, selectedAnswer: 'Yellow', correctAnswer: 'Yellow', isCorrect: true },
-            { questionId: 2, selectedAnswer: 'Cat', correctAnswer: 'Cat', isCorrect: true },
-            { questionId: 3, selectedAnswer: '7', correctAnswer: '7', isCorrect: score > 50 },
-            { questionId: 4, selectedAnswer: 'Pencil', correctAnswer: 'Pencil', isCorrect: score > 30 }
-          ]
-        }
-      });
-
-      // Update child with level
-      await prisma.child.update({
-        where: { id: child.id },
-        data: { level }
-      });
-
-      console.log(`📊 Assessment created: Score ${score}%, Level ${level}`);
-
-      // Create learning plan
-      console.log(`📚 Creating 60-day learning plan for ${child.name}...`);
-      
-      const startDate = new Date();
-      const endDate = new Date();
-      endDate.setDate(startDate.getDate() + 60);
-
-      const plan = await prisma.learningPlan.create({
-        data: {
-          childId: child.id,
-          level,
-          startDate,
-          endDate,
-          isActive: true
-        }
-      });
-
-      // Generate plan days
-      const planDays = PlanGenerator.generatePlan(level);
-      
-      await prisma.learningPlanDay.createMany({
-        data: planDays.map(day => ({
-          planId: plan.id,
-          dayNumber: day.dayNumber,
-          vocabTask: day.vocabTask,
-          readingTask: day.readingTask,
-          speakingPrompt: day.speakingPrompt
-        }))
-      });
-
-      console.log(`✅ Created plan with 60 days for ${child.name}`);
-
-      // Create some sample sessions for the first few days
-      const firstDays = await prisma.learningPlanDay.findMany({
-        where: { planId: plan.id },
-        take: Math.floor(Math.random() * 5) + 1, // 1-5 days
-        orderBy: { dayNumber: 'asc' }
-      });
-
-      for (const planDay of firstDays) {
-        await prisma.learningSession.create({
-          data: {
-            childId: child.id,
-            planDayId: planDay.id,
-            vocabAnswer: 'Sample answer',
-            readingAnswer: 'Sample reading answer',
-            speakingAnswer: 'This is a sample speaking response.',
-            vocabCorrect: Math.random() > 0.2, // 80% correct rate
-            readingCorrect: Math.random() > 0.25, // 75% correct rate
-            totalTimeMs: Math.floor(Math.random() * 240000) + 60000 // 1-4 minutes
+          slug: 'colors-sun',
+          text: 'What color is the sun?',
+          ageMin: 8,
+          ageMax: 10,
+          scope: 'vocab',
+          levelHint: 'A0',
+          options: {
+            create: [
+              { text: 'Blue', isCorrect: false },
+              { text: 'Yellow', isCorrect: true },
+              { text: 'Green', isCorrect: false },
+              { text: 'Purple', isCorrect: false }
+            ]
           }
-        });
-      }
+        }
+      }),
+      prisma.question.create({
+        data: {
+          slug: 'animals-cat',
+          text: 'Which animal says "meow"?',
+          ageMin: 8,
+          ageMax: 12,
+          scope: 'vocab',
+          levelHint: 'A0',
+          options: {
+            create: [
+              { text: 'Dog', isCorrect: false },
+              { text: 'Cat', isCorrect: true },
+              { text: 'Bird', isCorrect: false },
+              { text: 'Fish', isCorrect: false }
+            ]
+          }
+        }
+      }),
+      prisma.question.create({
+        data: {
+          slug: 'body-parts-eyes',
+          text: 'What do we use to see?',
+          ageMin: 8,
+          ageMax: 11,
+          scope: 'vocab',
+          levelHint: 'A0',
+          options: {
+            create: [
+              { text: 'Ears', isCorrect: false },
+              { text: 'Eyes', isCorrect: true },
+              { text: 'Nose', isCorrect: false },
+              { text: 'Mouth', isCorrect: false }
+            ]
+          }
+        }
+      }),
 
-      console.log(`🎯 Created ${firstDays.length} sample sessions for ${child.name}`);
-    }
+      // A0 Grammar Questions
+      prisma.question.create({
+        data: {
+          slug: 'grammar-is-are',
+          text: 'Complete: "The cat ___ sleeping"',
+          ageMin: 8,
+          ageMax: 12,
+          scope: 'grammar',
+          levelHint: 'A0',
+          options: {
+            create: [
+              { text: 'is', isCorrect: true },
+              { text: 'are', isCorrect: false },
+              { text: 'am', isCorrect: false },
+              { text: 'be', isCorrect: false }
+            ]
+          }
+        }
+      }),
+
+      // A1 Vocabulary Questions (Ages 9-12)
+      prisma.question.create({
+        data: {
+          slug: 'time-week',
+          text: 'How many days are in a week?',
+          ageMin: 9,
+          ageMax: 13,
+          scope: 'vocab',
+          levelHint: 'A1',
+          options: {
+            create: [
+              { text: '5', isCorrect: false },
+              { text: '6', isCorrect: false },
+              { text: '7', isCorrect: true },
+              { text: '8', isCorrect: false }
+            ]
+          }
+        }
+      }),
+      prisma.question.create({
+        data: {
+          slug: 'seasons-after-winter',
+          text: 'Which season comes after winter?',
+          ageMin: 10,
+          ageMax: 13,
+          scope: 'vocab',
+          levelHint: 'A1',
+          options: {
+            create: [
+              { text: 'Summer', isCorrect: false },
+              { text: 'Fall', isCorrect: false },
+              { text: 'Spring', isCorrect: true },
+              { text: 'Winter', isCorrect: false }
+            ]
+          }
+        }
+      }),
+      prisma.question.create({
+        data: {
+          slug: 'family-mother-father',
+          text: 'Your mother and father are your...',
+          ageMin: 8,
+          ageMax: 12,
+          scope: 'vocab',
+          levelHint: 'A1',
+          options: {
+            create: [
+              { text: 'friends', isCorrect: false },
+              { text: 'parents', isCorrect: true },
+              { text: 'siblings', isCorrect: false },
+              { text: 'teachers', isCorrect: false }
+            ]
+          }
+        }
+      }),
+
+      // A1 Grammar Questions
+      prisma.question.create({
+        data: {
+          slug: 'grammar-past-simple',
+          text: 'Yesterday, I ___ to school.',
+          ageMin: 10,
+          ageMax: 13,
+          scope: 'grammar',
+          levelHint: 'A1',
+          options: {
+            create: [
+              { text: 'go', isCorrect: false },
+              { text: 'goes', isCorrect: false },
+              { text: 'went', isCorrect: true },
+              { text: 'going', isCorrect: false }
+            ]
+          }
+        }
+      }),
+
+      // A1 Reading Questions
+      prisma.question.create({
+        data: {
+          slug: 'reading-simple-sentence',
+          text: 'Read: "The dog runs fast in the park." Where does the dog run?',
+          ageMin: 9,
+          ageMax: 12,
+          scope: 'reading',
+          levelHint: 'A1',
+          options: {
+            create: [
+              { text: 'at home', isCorrect: false },
+              { text: 'in the park', isCorrect: true },
+              { text: 'at school', isCorrect: false },
+              { text: 'in the car', isCorrect: false }
+            ]
+          }
+        }
+      }),
+
+      // A2 Questions (Ages 11-13)
+      prisma.question.create({
+        data: {
+          slug: 'science-spider-legs',
+          text: 'How many legs does a spider have?',
+          ageMin: 11,
+          ageMax: 13,
+          scope: 'vocab',
+          levelHint: 'A2',
+          options: {
+            create: [
+              { text: '6', isCorrect: false },
+              { text: '8', isCorrect: true },
+              { text: '10', isCorrect: false },
+              { text: '4', isCorrect: false }
+            ]
+          }
+        }
+      }),
+      prisma.question.create({
+        data: {
+          slug: 'geography-earth',
+          text: 'What planet do we live on?',
+          ageMin: 10,
+          ageMax: 13,
+          scope: 'vocab',
+          levelHint: 'A2',
+          options: {
+            create: [
+              { text: 'Mars', isCorrect: false },
+              { text: 'Venus', isCorrect: false },
+              { text: 'Earth', isCorrect: true },
+              { text: 'Jupiter', isCorrect: false }
+            ]
+          }
+        }
+      }),
+
+      // A2 Grammar Questions
+      prisma.question.create({
+        data: {
+          slug: 'grammar-present-perfect',
+          text: 'I ___ never been to Paris.',
+          ageMin: 11,
+          ageMax: 13,
+          scope: 'grammar',
+          levelHint: 'A2',
+          options: {
+            create: [
+              { text: 'am', isCorrect: false },
+              { text: 'have', isCorrect: true },
+              { text: 'had', isCorrect: false },
+              { text: 'was', isCorrect: false }
+            ]
+          }
+        }
+      }),
+
+      // A2 Reading Questions
+      prisma.question.create({
+        data: {
+          slug: 'reading-comprehension',
+          text: 'Read: "Maria loves to read books about adventure. She has a big collection of stories about pirates and explorers." What does Maria collect?',
+          ageMin: 11,
+          ageMax: 13,
+          scope: 'reading',
+          levelHint: 'A2',
+          options: {
+            create: [
+              { text: 'toys', isCorrect: false },
+              { text: 'adventure books', isCorrect: true },
+              { text: 'maps', isCorrect: false },
+              { text: 'pictures', isCorrect: false }
+            ]
+          }
+        }
+      }),
+
+      // Speaking Prompts (no options, for variety)
+      prisma.question.create({
+        data: {
+          slug: 'speaking-favorite-color',
+          text: 'Tell me about your favorite color. Why do you like it?',
+          ageMin: 8,
+          ageMax: 13,
+          scope: 'speaking',
+          levelHint: 'A0',
+          options: {
+            create: []
+          }
+        }
+      }),
+      prisma.question.create({
+        data: {
+          slug: 'speaking-family',
+          text: 'Describe your family. Who lives in your house?',
+          ageMin: 9,
+          ageMax: 13,
+          scope: 'speaking',
+          levelHint: 'A1',
+          options: {
+            create: []
+          }
+        }
+      }),
+
+      // Listening Questions (simulated)
+      prisma.question.create({
+        data: {
+          slug: 'listening-numbers',
+          text: 'Listen: "I have three cats and two dogs." How many pets total?',
+          ageMin: 8,
+          ageMax: 12,
+          scope: 'listening',
+          levelHint: 'A1',
+          options: {
+            create: [
+              { text: '3', isCorrect: false },
+              { text: '4', isCorrect: false },
+              { text: '5', isCorrect: true },
+              { text: '6', isCorrect: false }
+            ]
+          }
+        }
+      }),
+      prisma.question.create({
+        data: {
+          slug: 'listening-directions',
+          text: 'Listen: "Go straight, then turn left at the park." What should you do at the park?',
+          ageMin: 10,
+          ageMax: 13,
+          scope: 'listening',
+          levelHint: 'A2',
+          options: {
+            create: [
+              { text: 'stop', isCorrect: false },
+              { text: 'turn right', isCorrect: false },
+              { text: 'turn left', isCorrect: true },
+              { text: 'go back', isCorrect: false }
+            ]
+          }
+        }
+      })
+    ]);
+
+    console.log(`✅ Created ${questions.length} questions with options`);
 
     // Final statistics
     const stats = await Promise.all([
+      prisma.guardian.count(),
       prisma.child.count(),
-      prisma.assessment.count(),
-      prisma.learningPlan.count(),
-      prisma.learningPlanDay.count(),
-      prisma.learningSession.count()
+      prisma.question.count(),
+      prisma.option.count()
     ]);
 
-    const [totalChildren, totalAssessments, totalPlans, totalPlanDays, totalSessions] = stats;
+    const [totalGuardians, totalChildren, totalQuestions, totalOptions] = stats;
 
     console.log('\n🎉 Seeding completed successfully!');
     console.log('📊 Database Statistics:');
+    console.log(`   - Guardians: ${totalGuardians}`);
     console.log(`   - Children: ${totalChildren}`);
-    console.log(`   - Assessments: ${totalAssessments}`);
-    console.log(`   - Learning Plans: ${totalPlans}`);
-    console.log(`   - Plan Days: ${totalPlanDays}`);
-    console.log(`   - Learning Sessions: ${totalSessions}`);
+    console.log(`   - Questions: ${totalQuestions}`);
+    console.log(`   - Options: ${totalOptions}`);
     console.log('\n🚀 Ready to start the Micronova backend!');
     
   } catch (error) {

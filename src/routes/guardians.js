@@ -28,35 +28,35 @@ router.get('/', async (req, res) => {
 
 // POST /api/guardians - Create new guardian
 router.post('/', [
-  body('name')
-    .trim()
-    .isLength({ min: 1, max: 100 })
-    .withMessage('Name must be 1-100 characters'),
-  body('email')
-    .isEmail()
-    .withMessage('Valid email is required'),
-  body('relationship')
-    .optional()
-    .isLength({ min: 1, max: 50 })
-    .withMessage('Relationship must be 1-50 characters')
-], handleValidationErrors, async (req, res) => {
+  body('name').trim().isLength({ min: 2, max: 100 }).withMessage('Name must be 2-100 characters'),
+  body('email').isEmail().normalizeEmail().withMessage('Valid email required'),
+  body('phone').optional().isMobilePhone().withMessage('Valid phone number required'),
+  handleValidationErrors
+], async (req, res) => {
   try {
-    const { name, email, relationship } = req.body;
+    const { name, email, phone } = req.body;
     
-    const guardian = await prisma.guardian.create({
-      data: {
-        name,
-        email,
-        relationship: relationship || 'parent'
-      }
+    // Check if email already exists
+    const existingGuardian = await prisma.guardian.findUnique({
+      where: { email }
     });
+    
+    if (existingGuardian) {
+      return res.status(400).json({ error: 'Email already registered' });
+    }
 
+    const guardian = await prisma.guardian.create({
+      data: { name, email, phone: phone || null }
+    });
+    
     res.status(201).json({ guardian });
   } catch (error) {
     console.error('Error creating guardian:', error);
     res.status(500).json({ error: 'Failed to create guardian' });
   }
 });
+
+module.exports = router;
 
 // GET /api/guardians/:id - Get guardian by ID
 router.get('/:id', [
